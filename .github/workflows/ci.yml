@@ -143,7 +143,6 @@ jobs:
           gcovr --root "$GITHUB_WORKSPACE" --gcov-ignore-errors=no_working_dir_found \
             --filter "$GITHUB_WORKSPACE/client/include/" \
             --filter "$GITHUB_WORKSPACE/client/src/" \
-            --filter "$GITHUB_WORKSPACE/ctl/src/" \
             --filter "$GITHUB_WORKSPACE/server/include/" \
             --filter "$GITHUB_WORKSPACE/server/src/" \
             --filter "$GITHUB_WORKSPACE/wire/include/" \

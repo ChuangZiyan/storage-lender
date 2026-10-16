@@ -6,7 +6,8 @@ All notable Storage Lender changes will be documented here.
 
 - Relicense the project under Apache-2.0.
 - Add initial open-source project documentation, contribution metadata, and GitHub Actions.
-- Add `ctl_py/`, the python3 package for a `storage-lender-ctl` rewrite, behind `BUILD_PYTHON_CTL`.
+- Rewrite `storage-lender-ctl` in python3 and remove the C++ implementation. The command line and
+  output are unchanged; the server package now depends on `python3` and `python3-protobuf`.
 
 ## 0.1.0 - preparation
 

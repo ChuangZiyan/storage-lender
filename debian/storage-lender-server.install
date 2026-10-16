@@ -1,3 +1,4 @@
 usr/sbin/storage-lender-server
 usr/bin/storage-lender-ctl
+usr/share/storage-lender/python
 etc/storage-lender/config.toml

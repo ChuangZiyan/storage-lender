@@ -17,10 +17,10 @@
 set -euo pipefail
 
 usage() {
-    echo "usage: $0 BUILD_DIR SPDK_ROOT SPDLOG_ROOT TOMLPLUSPLUS_ROOT SERVER_BINARY CTL_BINARY CLIENT_LIBRARY [OUTPUT_DIR]" >&2
+    echo "usage: $0 BUILD_DIR SPDK_ROOT SPDLOG_ROOT TOMLPLUSPLUS_ROOT SERVER_BINARY CLIENT_LIBRARY [OUTPUT_DIR]" >&2
 }
 
-if (($# < 7 || $# > 8)); then
+if (($# < 6 || $# > 7)); then
     usage
     exit 2
 fi
@@ -30,9 +30,8 @@ readonly SPDK_ROOT="$2"
 readonly SPDLOG_ROOT="$3"
 readonly TOMLPLUSPLUS_ROOT="$4"
 readonly SERVER_BINARY="$5"
-readonly CTL_BINARY="$6"
-readonly CLIENT_LIBRARY="$7"
-readonly OUTPUT_DIR="${8:-${BUILD_DIR}/compliance}"
+readonly CLIENT_LIBRARY="$6"
+readonly OUTPUT_DIR="${7:-${BUILD_DIR}/compliance}"
 
 repo_root="$(git rev-parse --show-toplevel)"
 readonly repo_root
@@ -61,7 +60,6 @@ require_file "${SPDLOG_ROOT}/include/spdlog/fmt/bundled/fmt.license.rst"
 require_file "${TOMLPLUSPLUS_ROOT}/LICENSE"
 require_file "${TOMLPLUSPLUS_ROOT}/include/toml++/impl/version.hpp"
 require_file "${SERVER_BINARY}"
-require_file "${CTL_BINARY}"
 require_file "${CLIENT_LIBRARY}"
 
 if ! awk -F '\t' '
@@ -310,9 +308,6 @@ direct_dependencies() {
     echo
     echo "Direct shared libraries required by storage-lender-server:"
     direct_dependencies "${SERVER_BINARY}" | sed 's/^/  /'
-    echo
-    echo "Direct shared libraries required by storage-lender-ctl:"
-    direct_dependencies "${CTL_BINARY}" | sed 's/^/  /'
     echo
     echo "Direct shared libraries required by libstorage_lender_client:"
     direct_dependencies "${CLIENT_LIBRARY}" | sed 's/^/  /'

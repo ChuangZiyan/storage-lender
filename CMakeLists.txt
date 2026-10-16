@@ -53,7 +53,6 @@ else()
 endif()
 option(ENABLE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)
 option(ENABLE_COVERAGE "Enable coverage instrumentation and report target (requires gcovr)" OFF)
-option(BUILD_PYTHON_CTL "Build the Python management CLI under ctl_py/ (requires python3-protobuf)" OFF)
 
 if(ENABLE_SANITIZERS)
     add_compile_options(-fsanitize=address,undefined)
@@ -80,12 +79,10 @@ endif()
 find_package(Boost REQUIRED CONFIG COMPONENTS fiber context system coroutine)
 find_package(Protobuf REQUIRED)
 find_package(SPDK REQUIRED)
-if(BUILD_PYTHON_CTL)
-    find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
-    # protoc 3.21 output needs a google.protobuf runtime of at least 3.20.
-    find_package(Python3Protobuf 3.20 REQUIRED)
-    include(AddLenderPythonTest)
-endif()
+# storage-lender-ctl is a python3 tool; protoc 3.21 output needs a google.protobuf runtime >= 3.20.
+find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
+find_package(Python3Protobuf 3.20 REQUIRED)
+include(AddLenderPythonTest)
 
 cpmaddpackage("gh:gabime/spdlog@1.17.0")
 cpmaddpackage("gh:marzer/tomlplusplus@3.4.0")
@@ -101,9 +98,6 @@ add_subdirectory(wire)
 add_subdirectory(server)
 add_subdirectory(client)
 add_subdirectory(ctl)
-if(BUILD_PYTHON_CTL)
-    add_subdirectory(ctl_py)
-endif()
 
 if(BUILD_EXAMPLES)
     add_subdirectory(examples)
@@ -114,8 +108,8 @@ add_custom_target(
     COMMAND
         ${CMAKE_SOURCE_DIR}/ci/create-notice-bundle.sh ${CMAKE_BINARY_DIR} ${SPDK_NOTICE_SOURCE_DIR}
         ${spdlog_SOURCE_DIR} ${tomlplusplus_SOURCE_DIR} $<TARGET_FILE:StorageLenderServer>
-        $<TARGET_FILE:StorageLenderCtl> $<TARGET_FILE:StorageLenderClientShared>
-    DEPENDS StorageLenderServer StorageLenderCtl StorageLenderClientShared
+        $<TARGET_FILE:StorageLenderClientShared>
+    DEPENDS StorageLenderServer StorageLenderClientShared
     COMMENT "Creating the third-party open-source notice bundle"
     VERBATIM USES_TERMINAL)
 
@@ -130,7 +124,7 @@ if(ENABLE_COVERAGE)
         COMMAND
             ${GCOVR} --root "${CMAKE_SOURCE_DIR}" --gcov-ignore-errors=no_working_dir_found --filter
             "${CMAKE_SOURCE_DIR}/client/include/" --filter "${CMAKE_SOURCE_DIR}/client/src/"
-            --filter "${CMAKE_SOURCE_DIR}/ctl/src/" --filter "${CMAKE_SOURCE_DIR}/server/include/"
+            --filter "${CMAKE_SOURCE_DIR}/server/include/"
             --filter "${CMAKE_SOURCE_DIR}/server/src/" --filter "${CMAKE_SOURCE_DIR}/wire/include/"
             --filter "${CMAKE_SOURCE_DIR}/wire/src/" --html-details "${COVERAGE_DIR}/index.html"
             --print-summary "${CMAKE_BINARY_DIR}"

@@ -27,8 +27,9 @@ build/compliance/storage-lender-<version>-notice-bundle.tar.gz
 
 The archive contains this notice, the component manifest, all referenced license texts, the Storage
 Lender license, build-specific component metadata, and SHA-256 checksums. The target depends on the
-server, ctl, and public client binaries so its build metadata also records each direct
-shared-library requirement.
+server and public client binaries so its build metadata also records each direct shared-library
+requirement. `storage-lender-ctl` is a python3 script and has no shared-library requirements of its
+own.
 
 ## Release gate
 
