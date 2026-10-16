@@ -389,7 +389,9 @@ touches a session resource manager.
 
 `wire.proto` owns the shared envelope, gRPC-style statuses, and 64 KiB frame boundary.
 `client.proto` and `ctl.proto` retain distinct method IDs and payloads; the public C++ client
-library does not expose ctl messages or authorization.
+library does not expose ctl messages or authorization. `storage-lender-ctl` is a python3 tool built
+on `protoc --python_out` bindings of the same two files, so protocol changes need no ctl-side
+serialization code.
 
 ## Hardware Boundary
 
@@ -418,9 +420,15 @@ explicitly provisioned hardware layers. Public client API integration tests rema
 and link the installed-shape client interface with server test support rather than becoming server
 protocol tests.
 
-CTest component labels (`server` and `client`) are orthogonal to layer labels (`unit`,
-`integration`, and `hardware`). A test carries one component and one layer label, allowing either
-boundary to select the relevant suite without encoding ownership in directory-wide test logic.
+The management CLI under `ctl/` is pure Python: CMake stages the `storage_lender_ctl` package with
+the generated bindings into the build tree, registers its pytest suite through
+`add_lender_python_test()`, and compiles one gtest that runs the launcher as a subprocess against
+the server harness.
+
+CTest component labels (`server`, `client`, `ctl`, and `proto`) are orthogonal to layer labels
+(`unit`, `integration`, and `hardware`). A test carries one component and one layer label, allowing
+either boundary to select the relevant suite without encoding ownership in directory-wide test
+logic.
 
 ## Related Documentation
 

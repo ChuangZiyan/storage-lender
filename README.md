@@ -28,6 +28,8 @@ resource lifecycles, failure semantics, and the control/data-path split.
 | [GoogleTest](https://github.com/google/googletest)                       | 1.17.0                                      | CPM (fetched at configure time)             |
 | C++ compiler                                                             | Server: C++23; client API: C++17-compatible | GCC ≥ 13 or Clang ≥ 17                      |
 | CMake                                                                    | ≥ 3.26                                      | —                                           |
+| Python                                                                   | ≥ 3.10 with `google.protobuf` ≥ 3.20        | `find_package(Python3)`; `python3-protobuf` |
+| pytest                                                                   | any (tests only)                            | `python3-pytest`                            |
 
 The required Linux and SPDK changes are maintained on the `storage-lender-main` branch of their
 linked repositories. SPDK must be built with DPDK (`--with-dpdk`) and installed so that `pkg-config`
@@ -40,7 +42,8 @@ cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
 cmake --build build -j$(nproc)
 ```
 
-The server binary is `build/server/storage-lender-server`.
+The server binary is `build/server/storage-lender-server`. The management CLI is a python3 tool; its
+build-tree launcher is `build/ctl/stage/bin/storage-lender-ctl`.
 
 ## Development checks
 
@@ -52,9 +55,9 @@ pipx install pre-commit==4.6.1
 pre-commit install --install-hooks
 ```
 
-The hook formats staged C++, CMake, shell, and Markdown files and runs ShellCheck on staged shell
-files. If a formatter changes a file, the commit stops so the changes can be reviewed and staged.
-Run every check across the repository with:
+The hook formats staged C++, CMake, shell, Python, and Markdown files, lints Python with ruff, and
+runs ShellCheck on staged shell files. If a formatter changes a file, the commit stops so the
+changes can be reviewed and staged. Run every check across the repository with:
 
 ```sh
 pre-commit run --all-files
@@ -74,14 +77,15 @@ dpkg-buildpackage -us -uc -b -d
 
 Four binary packages are produced:
 
-| Package                        | Contents                                                                                                                 |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `storage-lender-server`        | Server binary, `/usr/bin/storage-lender-ctl`, systemd unit, system group, and `/etc/storage-lender/config.toml` conffile |
-| `libstorage-lender-client0`    | Shared library (`libstorage_lender_client.so.0`)                                                                         |
-| `libstorage-lender-client-dev` | Headers (`/usr/include/storage_lender/`), static archive, `.so` symlink, and CMake config                                |
-| `storage-lender-examples`      | Runnable queue-provisioning example and standalone C++ source                                                            |
+| Package                        | Contents                                                                                                                                                                          |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `storage-lender-server`        | Server binary, `/usr/bin/storage-lender-ctl` and its package under `/usr/share/storage-lender/python`, systemd unit, system group, and `/etc/storage-lender/config.toml` conffile |
+| `libstorage-lender-client0`    | Shared library (`libstorage_lender_client.so.0`)                                                                                                                                  |
+| `libstorage-lender-client-dev` | Headers (`/usr/include/storage_lender/`), static archive, `.so` symlink, and CMake config                                                                                         |
+| `storage-lender-examples`      | Runnable queue-provisioning example and standalone C++ source                                                                                                                     |
 
 `libstorage-lender-client-dev` depends on `libstorage-lender-client0` and `libprotobuf-dev`.
+`storage-lender-server` depends on `python3` and `python3-protobuf` for the management CLI.
 `storage-lender-examples` depends on the matching server and client runtime.
 
 Every binary package installs the Storage Lender license, the third-party component manifest, the
@@ -196,10 +200,11 @@ policy or restart the service with the intended policy.
 
 ### Management ctl
 
-`storage-lender-ctl` is a separate, read-only management client. It has no config file and does not
-read the server TOML; it uses `/run/storage-lender/ctl.sock` by default or the explicit `--socket`
-value. Socket ownership and mode are the only management authorization in this release, so the
-packaged default requires root.
+`storage-lender-ctl` is a separate, read-only management client written in python3 (the
+`storage_lender_ctl` package under [ctl/](ctl/), declared by `ctl/pyproject.toml`). It has no config
+file and does not read the server TOML; it uses `/run/storage-lender/ctl.sock` by default or the
+explicit `--socket` value. Socket ownership and mode are the only management authorization in this
+release, so the packaged default requires root.
 
 ```sh
 sudo storage-lender-ctl quota
@@ -210,7 +215,9 @@ sudo storage-lender-ctl -s /run/storage-lender/ctl.sock -c never quota
 ```
 
 The command is `storage-lender-ctl [options] quota|latency`. Options may appear before or after the
-subcommand, and each option may appear once.
+subcommand; a repeated option takes its last value. Usage errors exit with status 2 before
+connecting, connection and server failures exit with status 1 and a one-line reason on stderr, and
+`storage-lender-ctl <command> --help` prints per-command usage.
 
 | Short | Long                          | Values                           | Default                        |
 | ----- | ----------------------------- | -------------------------------- | ------------------------------ |
@@ -436,10 +443,10 @@ ctest --test-dir build --output-on-failure -LE hardware
 ```
 
 Tests are component-local and grouped by layer. Server tests live under
-`server/tests/{unit,integration,hardware}`, while public client API tests live under
-`client/tests/integration`. See the
-[build and test architecture](docs/Architecture.md#build-and-test-architecture) for production and
-test-target composition.
+`server/tests/{unit,integration,hardware}`, public client API tests live under
+`client/tests/integration`, and the management CLI's pytest suite and end-to-end test live under
+`ctl/tests`. See the [build and test architecture](docs/Architecture.md#build-and-test-architecture)
+for production and test-target composition.
 
 CTest labels select the useful cross-component views:
 
