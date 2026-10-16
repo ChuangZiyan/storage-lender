@@ -36,8 +36,14 @@ protobuf_generate(
     PROTOC_OUT_DIR ${PYTHON_CTL_PACKAGE_DIR}/proto
     OUT_VAR PYTHON_CTL_GENERATED)
 
-set(PYTHON_CTL_SOURCES src/storage_lender_ctl/__init__.py src/storage_lender_ctl/_version.py
-                       src/storage_lender_ctl/proto/__init__.py)
+set(PYTHON_CTL_SOURCES
+    src/storage_lender_ctl/__init__.py
+    src/storage_lender_ctl/__main__.py
+    src/storage_lender_ctl/_version.py
+    src/storage_lender_ctl/cli.py
+    src/storage_lender_ctl/client.py
+    src/storage_lender_ctl/render.py
+    src/storage_lender_ctl/proto/__init__.py)
 
 set(PYTHON_CTL_STAGED ${PYTHON_CTL_GENERATED})
 foreach(SOURCE IN LISTS PYTHON_CTL_SOURCES)
@@ -52,6 +58,18 @@ foreach(SOURCE IN LISTS PYTHON_CTL_SOURCES)
     list(APPEND PYTHON_CTL_STAGED ${STAGED})
 endforeach()
 
+# The launcher is a plain script: it finds the package relative to its own location.
+set(PYTHON_CTL_LAUNCHER ${PYTHON_CTL_STAGE_DIR}/bin/storage-lender-ctl)
+add_custom_command(
+    OUTPUT ${PYTHON_CTL_LAUNCHER}
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/bin/storage-lender-ctl.py
+            ${PYTHON_CTL_LAUNCHER}
+    COMMAND chmod 755 ${PYTHON_CTL_LAUNCHER}
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/bin/storage-lender-ctl.py
+    COMMENT "Staging storage-lender-ctl"
+    VERBATIM)
+list(APPEND PYTHON_CTL_STAGED ${PYTHON_CTL_LAUNCHER})
+
 add_custom_target(StorageLenderCtlPy ALL DEPENDS ${PYTHON_CTL_STAGED})
 
 if(BUILD_TESTS)
@@ -65,4 +83,6 @@ if(BUILD_TESTS)
         LABELS
         ctl
         unit)
+    set_tests_properties(StorageLenderCtlPyTests PROPERTIES ENVIRONMENT_MODIFICATION
+                                                          "STORAGE_LENDER_CTL_LAUNCHER=set:${PYTHON_CTL_LAUNCHER}")
 endif()
