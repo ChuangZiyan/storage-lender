@@ -43,7 +43,9 @@ set_target_properties(
                OUTPUT_NAME storage-lender-ctl)
 
 include(GNUInstallDirs)
-install(TARGETS StorageLenderCtl RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+if(NOT BUILD_PYTHON_CTL)
+    install(TARGETS StorageLenderCtl RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()
 
 if(BUILD_TESTS)
     add_lender_test(

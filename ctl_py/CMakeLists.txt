@@ -72,6 +72,17 @@ list(APPEND PYTHON_CTL_STAGED ${PYTHON_CTL_LAUNCHER})
 
 add_custom_target(StorageLenderCtlPy ALL DEPENDS ${PYTHON_CTL_STAGED})
 
+# Installed layout matches the staged one. This replaces the C++ storage-lender-ctl binary, which
+# ctl/CMakeLists.txt skips when BUILD_PYTHON_CTL is ON.
+install(
+    DIRECTORY ${PYTHON_CTL_PACKAGE_DIR}
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/storage-lender/python
+    PATTERN "__pycache__" EXCLUDE)
+install(
+    PROGRAMS bin/storage-lender-ctl.py
+    DESTINATION ${CMAKE_INSTALL_BINDIR}
+    RENAME storage-lender-ctl)
+
 if(BUILD_TESTS)
     add_lender_python_test(
         NAME
@@ -85,4 +96,19 @@ if(BUILD_TESTS)
         unit)
     set_tests_properties(StorageLenderCtlPyTests PROPERTIES ENVIRONMENT_MODIFICATION
                                                           "STORAGE_LENDER_CTL_LAUNCHER=set:${PYTHON_CTL_LAUNCHER}")
+
+    # Run the existing end-to-end ctl test against the staged launcher and a real server.
+    add_lender_test(
+        NAME
+        StorageLenderCtlPyIntegrationTest
+        SOURCES
+        ${CMAKE_SOURCE_DIR}/ctl/tests/integration_test.cpp
+        LIBRARIES
+        StorageLender::Server::TestSupport
+        LABELS
+        ctl
+        integration)
+    add_dependencies(StorageLenderCtlPyIntegrationTest StorageLenderCtlPy)
+    target_compile_definitions(StorageLenderCtlPyIntegrationTest
+                               PRIVATE STORAGE_LENDER_CTL_PATH="${PYTHON_CTL_LAUNCHER}")
 endif()

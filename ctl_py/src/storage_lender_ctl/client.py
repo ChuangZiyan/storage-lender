@@ -144,3 +144,9 @@ def get_command_latency(socket_path: str) -> ctl_pb2.GetCommandLatencyResponse:
     """Fetch the process-wide API command latency snapshot."""
     payload = call(socket_path, ctl_pb2.GET_COMMAND_LATENCY)
     return _parse(ctl_pb2.GetCommandLatencyResponse, payload, "command latency")
+
+
+def get_quota_state(socket_path: str) -> ctl_pb2.GetQuotaStateResponse:
+    """Fetch quota policy, global and per-principal usage, and limits."""
+    payload = call(socket_path, ctl_pb2.GET_QUOTA_STATE)
+    return _parse(ctl_pb2.GetQuotaStateResponse, payload, "quota")

@@ -31,7 +31,7 @@ def parse(*argv: str) -> cli.Options:
 
 
 def test_defaults() -> None:
-    options = parse("latency")
+    options = parse("quota")
     assert options == cli.Options()
     assert options.socket_path == "/run/storage-lender/ctl.sock"
 
@@ -68,9 +68,27 @@ def test_usage_errors_exit_2_without_connecting(capsys, argv: list[str], message
 
 def test_help_and_version_exit_0(capsys) -> None:
     assert cli.main(["--help"]) == cli.EXIT_OK
-    assert "latency" in capsys.readouterr().out
+    help_text = capsys.readouterr().out
+    assert "quota" in help_text
+    assert "latency" in help_text
     assert cli.main(["--version"]) == cli.EXIT_OK
     assert capsys.readouterr().out == f"storage-lender-ctl {__version__}\n"
+
+
+def test_quota_renders_human_output(capsys, fake_server: FakeServer) -> None:
+    quota = ctl_pb2.GetQuotaStateResponse(generation=1, mode=ctl_pb2.QUOTA_MODE_UNLIMITED)
+    fake_server.respond_with(
+        wire_pb2.Response(status_code=wire_pb2.OK, payload=quota.SerializeToString())
+    )
+
+    assert (
+        cli.main(["--socket", fake_server.socket_path, "--color", "never", "quota"]) == cli.EXIT_OK
+    )
+
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    assert captured.out.startswith("quota state\ngeneration: 1\nmode: unlimited\n")
+    assert "\nglobal\n" in captured.out
 
 
 def test_latency_renders_human_output(capsys, fake_server: FakeServer) -> None:

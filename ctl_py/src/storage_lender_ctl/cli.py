@@ -55,6 +55,12 @@ class Command:
 
 COMMANDS: tuple[Command, ...] = (
     Command(
+        name="quota",
+        help="show quota policy, usage, and limits globally and per principal",
+        fetch=client.get_quota_state,
+        render_human=render.render_quota_human,
+    ),
+    Command(
         name="latency",
         help="show API command latency and event-loop lag for this daemon process",
         fetch=client.get_command_latency,

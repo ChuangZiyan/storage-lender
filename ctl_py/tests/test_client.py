@@ -40,6 +40,24 @@ def test_latency_call_sends_empty_request_and_parses_response(fake_server: FakeS
     assert fake_server.requests[0].payload == b""
 
 
+def test_quota_call_sends_empty_request_and_parses_response(fake_server: FakeServer) -> None:
+    quota = ctl_pb2.GetQuotaStateResponse(generation=42)
+    fake_server.respond_with(ok_response(quota.SerializeToString()))
+
+    response = client.get_quota_state(fake_server.socket_path)
+
+    assert response.generation == 42
+    assert fake_server.requests[0].method == ctl_pb2.GET_QUOTA_STATE
+    assert fake_server.requests[0].payload == b""
+
+
+def test_unparseable_quota_payload_names_the_command(fake_server: FakeServer) -> None:
+    fake_server.respond_with(ok_response(b"\xff\xff\xff\xff\xff"))
+
+    with pytest.raises(client.CtlProtocolError, match="failed to parse quota response"):
+        client.get_quota_state(fake_server.socket_path)
+
+
 def test_server_status_is_reported_with_its_message(fake_server: FakeServer) -> None:
     fake_server.respond_with(
         wire_pb2.Response(status_code=wire_pb2.PERMISSION_DENIED, error_message="root required")

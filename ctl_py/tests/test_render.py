@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import itertools
 import json
 import re
 
@@ -45,6 +46,23 @@ def command_latency() -> ctl_pb2.GetCommandLatencyResponse:
     return response
 
 
+def quota_state() -> ctl_pb2.GetQuotaStateResponse:
+    response = ctl_pb2.GetQuotaStateResponse(generation=4, mode=ctl_pb2.QUOTA_MODE_ENFORCED)
+    response.global_usage.active.sessions = 1
+    response.global_usage.orphan.mapped_bytes = 4096
+    response.global_limits.sessions = 2
+    response.default_principal_limits.sessions = 2
+
+    storage = response.principals.add(principal="storage", named_limit_override=True)
+    storage.usage.active.sessions = 1
+    storage.usage.orphan.sessions = 1
+    storage.limits.sessions = 2
+
+    camera = response.principals.add(principal="camera", named_limit_override=True)
+    camera.limits.sessions = 2
+    return response
+
+
 def test_color_policy() -> None:
     assert not render.color_enabled("auto", False, "xterm", False)
     assert not render.color_enabled("auto", True, "dumb", False)
@@ -68,6 +86,61 @@ def test_format_unix_milliseconds() -> None:
 def test_render_table_aligns_first_column_left_and_others_right() -> None:
     output = render.render_table(("name", "n"), [("a", "1"), ("longer", "22")])
     assert output == "name     n\na        1\nlonger  22\n"
+
+
+def test_render_table_pads_around_colored_cells() -> None:
+    output = render.render_table(
+        ("k", "v"), [("a", render.Cell("1", render.ANSI_RED)), ("b", "22")]
+    )
+    assert output == "k   v\na   \033[31m1\033[0m\nb  22\n"
+
+
+def test_quota_human_output_is_deterministic() -> None:
+    output = render.render_quota_human(quota_state(), color=False)
+
+    assert output.startswith("quota state\ngeneration: 4\nmode: enforced\n\nglobal\nresource")
+    assert "\ndefault principal limits\nresource" in output
+    assert output.index("principal: camera (named limits)") < output.index("principal: storage")
+    for earlier, later in itertools.pairwise(render.QUOTA_RESOURCES):
+        assert output.index(earlier) < output.index(later)
+    global_section = output[output.index("global\n") : output.index("default principal limits")]
+    max_buffer_line = next(
+        line for line in global_section.splitlines() if line.startswith("max_buffer_bytes")
+    )
+    assert max_buffer_line.split() == ["max_buffer_bytes", "-", "-", "unlimited"]
+    sessions_line = next(
+        line for line in global_section.splitlines() if line.startswith("sessions")
+    )
+    assert sessions_line.split() == ["sessions", "1", "0", "2"]
+    assert "\033[" not in output
+
+
+def test_quota_applies_only_semantic_color() -> None:
+    output = render.render_quota_human(quota_state(), color=True)
+
+    assert output.startswith("\033[1mquota state\033[0m\n")
+    assert "\033[33m4096\033[0m" in output  # nonzero orphan usage is amber
+    storage_section = output[output.index("principal: storage") :]
+    sessions_line = next(
+        line for line in storage_section.splitlines() if line.startswith("sessions")
+    )
+    assert sessions_line.count("\033[31m1\033[0m") == 2  # storage reached its limit: red
+    assert output.count("\033[33m") == 1
+    assert output.count("\033[31m") == 2
+
+
+def test_quota_mode_names() -> None:
+    assert render.quota_mode_name(ctl_pb2.QUOTA_MODE_ENFORCED) == "enforced"
+    assert render.quota_mode_name(ctl_pb2.QUOTA_MODE_UNLIMITED) == "unlimited"
+    assert render.quota_mode_name(ctl_pb2.QUOTA_MODE_UNSPECIFIED) == "unspecified"
+
+
+def test_quota_json_keeps_64_bit_values_as_strings() -> None:
+    output = render.render_json(quota_state())
+
+    assert '"generation":"4"' in output
+    assert '"mode":"QUOTA_MODE_ENFORCED"' in output
+    assert Parse(output, ctl_pb2.GetQuotaStateResponse()).generation == 4
 
 
 def test_latency_human_output_is_deterministic() -> None:
